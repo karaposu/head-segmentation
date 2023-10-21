@@ -7,7 +7,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pandas as pd
-
+from tqdm import tqdm
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Preprocess dataset.")
@@ -45,7 +45,7 @@ def create_metadata_csv(attribute_txt: Path, output_dset_path: Path) -> None:
     samples = [sample.split() for sample in lines[2:]]
 
     attribs_df = pd.DataFrame(samples, columns=headers)
-    attribs_df = attribs_df.applymap(lambda x: x if x != "-1" else 0)
+    attribs_df = attribs_df.map(lambda x: x if x != "-1" else 0)
 
     metadata_csv = output_dset_path / "metadata.csv"
     attribs_df.to_csv(str(metadata_csv), index=False)
@@ -114,7 +114,7 @@ def create_segmaps(mask_files: t.Dict[str, t.List[Path]], save_dir: Path) -> Non
 
         output_file = save_dir / f"{image_id}.png"
         cv2.imwrite(str(output_file), segmap)
-
+        tqdm.write(f"Saved {output_file}", end="\r")
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")

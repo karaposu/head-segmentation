@@ -4,7 +4,7 @@ hydra:
   output_subdir: 'yamls'
 
 dataset_module:
-  dataset_root: '/path/to/dataset/root'
+  dataset_root: 'head-segmentation'
   nn_image_input_resolution: 512
   batch_size: 4
   all_augmentations: true

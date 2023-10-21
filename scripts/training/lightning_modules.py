@@ -3,7 +3,8 @@ import typing as t
 
 import pytorch_lightning as pl
 import torch
-from torchmetrics import ConfusionMatrix
+#from torchmetrics import ConfusionMatrix
+from torchmetrics.classification import MulticlassConfusionMatrix
 
 import head_segmentation.image_processing as ip
 import head_segmentation.model as mdl
@@ -110,9 +111,9 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
             weight=torch.tensor([background_weight, head_weight])
         )
 
-        self.train_cm_metric = ConfusionMatrix(num_classes=2)
-        self.val_cm_metric = ConfusionMatrix(num_classes=2)
-        self.test_cm_metric = ConfusionMatrix(num_classes=2)
+        self.train_cm_metric = MulticlassConfusionMatrix(num_classes=2)
+        self.val_cm_metric = MulticlassConfusionMatrix(num_classes=2)
+        self.test_cm_metric = MulticlassConfusionMatrix(num_classes=2)
 
         self.neural_net = mdl.HeadSegmentationModel(
             encoder_name=encoder_name,
@@ -159,7 +160,7 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
         )
 
     def _step(
-        self, batch: t.Tuple[torch.Tensor, torch.Tensor], cm_metric: ConfusionMatrix
+        self, batch: t.Tuple[torch.Tensor, torch.Tensor], cm_metric: MulticlassConfusionMatrix
     ) -> pl.utilities.types.STEP_OUTPUT:
         image, true_segmap = batch
 
@@ -175,7 +176,7 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
         self,
         log_prefix: str,
         outputs: pl.utilities.types.EPOCH_OUTPUT,
-        cm_metric: ConfusionMatrix,
+        cm_metric: MulticlassConfusionMatrix,
     ) -> None:
         mean_loss = torch.tensor([out["loss"] for out in outputs]).mean()
         self.log(f"{log_prefix}_loss", mean_loss, on_epoch=True)

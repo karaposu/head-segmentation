@@ -7,7 +7,7 @@ numpy
 opencv-python
 pandas
 Pillow
-pytorch-lightning
+pytorch-lightning==1.9.0
 seaborn
 segmentation-models-pytorch
 streamlit
