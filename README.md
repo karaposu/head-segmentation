@@ -87,7 +87,36 @@ conda activate head_segmentation
 
 # (Optional but recommended) Install pre-commit hooks to preserve code format consistency
 pre-commit install
+
+# Download the dataset 
+
+1.First we need to downdload the CelebADataset
+Here is official repo:
+
+You can download it to root directory of repo and unzip it is using 
+
 ```
+gdown 1badu11NqxGf6qM3PTTooQDJvQbejgbTv
+unzip CelebAMask-HQ
+
+```
+
+
+#-from the root directory of repo- run dataset preprocessor
+
+```
+python ./scripts/dataset/preprocess_raw_dataset.py --raw_dset_dir ./CelebAMask-HQ --output_dset_dir ./preprocessed_dset_dir
+
+```
+
+#and once this is finished you can run build the dataset  
+
+```
+
+python ./scripts/dataset/build_dataset.py --preprocessed_dset ./preprocessed_dset_dir --output_dset_root ./processed_dataset
+
+```
+
 
 ## 🔬 Quantitative results
 
