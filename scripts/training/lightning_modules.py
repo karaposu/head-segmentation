@@ -142,7 +142,12 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
     def test_step(
         self, batch: t.Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> pl.utilities.types.STEP_OUTPUT:
-        return self._step(batch, cm_metric=self.test_cm_metric)
+        start_time = time.time()
+        step_output = self._step(batch, cm_metric=self.test_cm_metric)
+        end_time = time.time()
+        inference_time = end_time - start_time
+        step_output["inference_time"] = inference_time
+        return step_output
 
     def training_epoch_end(self, outputs: pl.utilities.types.EPOCH_OUTPUT) -> None:
         self._summarize_epoch(
@@ -187,6 +192,9 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
         ious = cm.diag() / (cm.sum(dim=1) + cm.sum(dim=0) - cm.diag() + 1e-15)
         background_iou, head_iou = ious[0], ious[1]
         mIoU = ious.mean()
+        if "inference_time" in outputs[0]:
+            avg_inference_time = torch.tensor([out["inference_time"] for out in outputs]).mean()
+            self.log(f"{log_prefix}_avg_inference_time", avg_inference_time, on_epoch=True)
 
         self.log(f"{log_prefix}_background_IoU", background_iou, on_epoch=True)
         self.log(f"{log_prefix}_head_IoU", head_iou, on_epoch=True)

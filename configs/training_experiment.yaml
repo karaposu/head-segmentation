@@ -4,8 +4,8 @@ hydra:
   output_subdir: 'yamls'
 
 dataset_module:
-  dataset_root: 'head-segmentation'
-  nn_image_input_resolution: 512
+  dataset_root: '/home/enes/lab/head-segmentation/processed_dataset'
+  nn_image_input_resolution: 256
   batch_size: 4
   all_augmentations: true
   size_augmentation_keys: null
@@ -14,7 +14,8 @@ dataset_module:
 
 nn_module:
   lr: 0.0001
-  encoder_name: 'mobilenet_v2'
+ # encoder_name: 'mobilenet_v2'
+  encoder_name: 'resnet34'
   encoder_depth: 3
   use_pretrained: true
   loss:
@@ -24,7 +25,7 @@ nn_module:
 training:
   wandb_project: "head-segmentation"
   wandb_name: "test-run"
-  with_gpu: false
+  with_gpu: true
   max_epochs: 10
   early_stop:
     monitor: "val_loss"
