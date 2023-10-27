@@ -11,11 +11,17 @@ class VisualizationModule:
         self,
         figsize: t.Tuple[int, int] = (12, 10),
         font_size: int = 16,
+        n_classes: int = 2,
     ):
         self.figsize = figsize
         self.font_size = font_size
+        self.n_classes = n_classes
 
-        self.cmap = "gray"
+      
+        if self.n_classes == 2:
+            self.cmap = "gray"
+        else:
+            self.cmap = plt.get_cmap("jet", self.n_classes)
 
     def visualize_image(self, image: np.ndarray) -> matplotlib.figure.Figure:
         f = plt.figure(figsize=self.figsize)

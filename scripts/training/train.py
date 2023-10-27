@@ -9,7 +9,7 @@ from loguru import logger
 
 import scripts.training.lightning_modules as lm
 
-
+import hydra
 @hydra.main(
     config_path=os.path.join(os.getcwd(), "configs"), config_name="training_experiment"
 )
@@ -40,7 +40,7 @@ def main(configs: omegaconf.DictConfig) -> None:
         background_weight=configs.nn_module.loss.background_weight,
         head_weight=configs.nn_module.loss.head_weight,
     )
-
+ 
     # Callbacks
     logger.info("📲 Initializing callbacks.")
     early_stop_callback = pl.callbacks.early_stopping.EarlyStopping(

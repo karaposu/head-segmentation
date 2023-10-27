@@ -12,6 +12,50 @@ import scripts.training.augmentations as aug
 import scripts.training.data_loading as dl
 
 
+
+import hydra
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), "configs"), config_name="training_experiment"
+)
+# configs: omegaconf.DictConfig
+class HumanHeadSegmentationModelModule(pl.LightningModule):
+    def __init__(
+            self,
+            *,
+            lr: float,
+            encoder_name: str,
+            encoder_depth: int,
+            pretrained: bool,
+            nn_image_input_resolution: int,
+            classes: List[str],
+            class_weights: Dict[str, float]
+    ):
+        super().__init__()
+
+        self.learning_rate = lr
+
+        # Convert class_weights dictionary to tensor
+        weights_tensor = torch.tensor([class_weights[cls] for cls in classes])
+
+        self.criterion = torch.nn.CrossEntropyLoss(weight=weights_tensor)
+
+        num_classes = len(classes)
+        self.train_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+        self.val_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+        self.test_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+
+        self.neural_net = mdl.HeadSegmentationModel(
+            encoder_name=encoder_name,
+            encoder_depth=encoder_depth,
+            pretrained=pretrained,
+            nn_image_input_resolution=nn_image_input_resolution,
+            # num_classes=num_classes
+            num_classes = len(config.dataset_module.classes)
+        )
+
+        self.save_hyperparameters()
+
+
 class HumanHeadSegmentationDataModule(pl.LightningDataModule):
     def __init__(
         self,
@@ -91,7 +135,7 @@ class HumanHeadSegmentationDataModule(pl.LightningDataModule):
         )
 
 
-class HumanHeadSegmentationModelModuleMulticlass(pl.LightningModule):
+class HumanHeadSegmentationModelModule(pl.LightningModule):
     def __init__(
             self,
             *,
@@ -100,13 +144,33 @@ class HumanHeadSegmentationModelModuleMulticlass(pl.LightningModule):
             encoder_depth: int,
             pretrained: bool,
             nn_image_input_resolution: int,
-            background_weight: float = 1.0,
-            hair_weight: float = 1.0,
-            face_weight: float = 1.0,
-            neck_weight: float = 1.0,
+            classes: List[str],
+            class_weights: Dict[str, float]
     ):
         super().__init__()
+
+        self.learning_rate = lr
+
+        # Convert class_weights dictionary to tensor
+        weights_tensor = torch.tensor([class_weights[cls] for cls in classes])
+
+        self.criterion = torch.nn.CrossEntropyLoss(weight=weights_tensor)
+
+        num_classes = len(classes)
+        self.train_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+        self.val_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+        self.test_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+
+        self.neural_net = mdl.HeadSegmentationModel(
+            encoder_name=encoder_name,
+            encoder_depth=encoder_depth,
+            pretrained=pretrained,
+            nn_image_input_resolution=nn_image_input_resolution,
+            num_classes=num_classes
+        )
+
         self.save_hyperparameters()
+
 
         self.learning_rate = lr
 
@@ -184,7 +248,6 @@ class HumanHeadSegmentationModelModuleMulticlass(pl.LightningModule):
 
         return {"loss": loss}
 
-
     def _summarize_epoch(
             self,
             log_prefix: str,
@@ -194,25 +257,20 @@ class HumanHeadSegmentationModelModuleMulticlass(pl.LightningModule):
         mean_loss = torch.tensor([out["loss"] for out in outputs]).mean()
         self.log(f"{log_prefix}_loss", mean_loss, on_epoch=True)
 
-        cm = cm_metric.compute()
-        cm = cm.detach()
-
+        cm = cm_metric.compute().detach()
         ious = cm.diag() / (cm.sum(dim=1) + cm.sum(dim=0) - cm.diag() + 1e-15)
 
-        # Extract IoU for each class
-        background_iou, hair_iou, face_iou, neck_iou = ious[0], ious[1], ious[2], ious[3]
-
         mIoU = ious.mean()
+
+        # Loop through each class and its corresponding IoU
+        for class_name, iou in zip(self.hparams.classes, ious):
+            self.log(f"{log_prefix}_{class_name}_IoU", iou, on_epoch=True)
+
+        self.log(f"{log_prefix}_mIoU", mIoU, on_epoch=True)
+
         if "inference_time" in outputs[0]:
             avg_inference_time = torch.tensor([out["inference_time"] for out in outputs]).mean()
             self.log(f"{log_prefix}_avg_inference_time", avg_inference_time, on_epoch=True)
-
-        # Log the IoU for each class
-        self.log(f"{log_prefix}_background_IoU", background_iou, on_epoch=True)
-        self.log(f"{log_prefix}_hair_IoU", hair_iou, on_epoch=True)
-        self.log(f"{log_prefix}_face_IoU", face_iou, on_epoch=True)
-        self.log(f"{log_prefix}_neck_IoU", neck_iou, on_epoch=True)
-        self.log(f"{log_prefix}_mIoU", mIoU, on_epoch=True)
 
         cm_metric.reset()
 

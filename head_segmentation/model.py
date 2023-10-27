@@ -6,6 +6,10 @@ import segmentation_models_pytorch as smp
 import torch
 
 
+
+
+
+
 class HeadSegmentationModel(smp.Unet):
     @staticmethod
     def load_from_checkpoint(ckpt_path: str) -> HeadSegmentationModel:
@@ -32,6 +36,7 @@ class HeadSegmentationModel(smp.Unet):
         encoder_depth: int,
         pretrained: bool,
         nn_image_input_resolution: int,
+        num_classes: int ,
     ):
         super().__init__(
             encoder_name=encoder_name,
@@ -43,7 +48,7 @@ class HeadSegmentationModel(smp.Unet):
             ),
             decoder_attention_type=None,
             in_channels=3,
-            classes=2,
+            classes=num_classes
         )
 
     def _decoder_channels(

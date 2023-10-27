@@ -11,16 +11,24 @@ dataset_module:
   size_augmentation_keys: null
   content_augmentation_keys: null
   num_workers: 0
+  classes:
+    - 'background'
+    - 'head'
+    # Add more classes as needed like 'hair', 'neck', etc.
+  class_weights:
+    background: 1.0
+    head: 1.0
+  composite_classes:
+    head: ['eye', 'face', 'mouth']
+
+
 
 nn_module:
   lr: 0.0001
- # encoder_name: 'mobilenet_v2'
   encoder_name: 'resnet34'
   encoder_depth: 3
   use_pretrained: true
-  loss:
-    background_weight: 1.0
-    head_weight: 1.0
+  num_classes: ${len(dataset_module.classes)}  # Automatically computes the number of classes
 
 training:
   wandb_project: "head-segmentation"
@@ -31,3 +39,44 @@ training:
     monitor: "val_loss"
     patience: 5
     mode: "min"
+
+visualization:
+  cmap: 'gray' # Use gray for binary, 'jet' or others for multi-class
+  figsize: [12, 10]
+
+
+
+#
+#hydra:
+#  run:
+#    dir: 'training_runs/${now:%Y-%m-%d}/${now:%H-%M}'
+#  output_subdir: 'yamls'
+#
+#dataset_module:
+#  dataset_root: '/home/enes/lab/processed_dataset'
+#  nn_image_input_resolution: 256
+#  batch_size: 4
+#  all_augmentations: true
+#  size_augmentation_keys: null
+#  content_augmentation_keys: null
+#  num_workers: 0
+#
+#nn_module:
+#  lr: 0.0001
+# # encoder_name: 'mobilenet_v2'
+#  encoder_name: 'resnet34'
+#  encoder_depth: 3
+#  use_pretrained: true
+#  loss:
+#    background_weight: 1.0
+#    head_weight: 1.0
+#
+#training:
+#  wandb_project: "head-segmentation"
+#  wandb_name: "test-run"
+#  with_gpu: true
+#  max_epochs: 10
+#  early_stop:
+#    monitor: "val_loss"
+#    patience: 5
+#    mode: "min"

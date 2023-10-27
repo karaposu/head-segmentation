@@ -100,46 +100,62 @@ def load_mask_files(src_path: Path) -> t.Dict[str, t.List[Path]]:
     # }
     return mask_dict
 
-PARTS = {
-    'background': 0,
-    'hair': 1,
-    'face': 2,
-    'neck': 3,
-    # Add other parts as needed
-}
+# PARTS = {
+#     'background': 0,
+#     'hair': 1,
+#     'face': 2,
+#     'neck': 3,
+#     # Add other parts as needed
+# }
 
-def create_multiclass_segmaps(mask_files: t.Dict[str, t.List[Path]], save_dir: Path) -> None:
+from hydra import compose, initialize
+
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), "configs"), config_name="training_experiment"
+)
+def create_multiclass_segmaps(mask_files: t.Dict[str, t.List[Path]], save_dir: Path,
+                              composite_classes: t.Dict[str, t.List[str]]) -> None:
     logging.info(
         f"Creating segmentation masks and saving as PNG files in {save_dir}..."
     )
+
+    # Ensure 'classes' is loaded from your config or is defined somewhere
+    PARTS = {class_name: {'suffix': f'_{class_name}', 'value': idx + 1} for idx, class_name in enumerate(classes)}
+
+
     for image_id, mask_paths in mask_files.items():
-        final_segmap = np.zeros((1024, 1024), dtype=np.uint8)  # Initial size, can be adjusted
+        final_segmap = np.zeros((1024, 1024), dtype=np.uint8)
 
-        for part, class_value in PARTS.items():
-            if part == 'background':
-                continue  # Skip background here, it's handled by default initialization
+        for part, class_info in PARTS.items():
+            # Check if the class is composite
+            if part in composite_classes:
+                composite_masks = []
+                for sub_part in composite_classes[part]:
+                    composite_masks.extend([mask for mask in mask_paths if f'_{sub_part}' in str(mask)])
+                part_masks = composite_masks
+            else:
+                part_masks = [mask for mask in mask_paths if class_info['suffix'] in str(mask)]
 
-            part_masks = [mask for mask in mask_paths if part in str(mask)]
             if not part_masks:
                 continue
-
+            
             mask_images = [
                 cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE) for mask_file in part_masks
             ]
-
+            
             mask_images = np.array(mask_images)
             aggregate_lbls = mask_images.sum(axis=0)
-            aggregate_lbls[aggregate_lbls > 0] = class_value  # Assign class value
+            aggregate_lbls[aggregate_lbls > 0] = class_info['value']
 
-            final_segmap[aggregate_lbls == class_value] = class_value  # Merge into final segmentation map
+            # Merge into the final segmentation map
+            final_segmap += aggregate_lbls
 
-        # Resize final segmentation map (if needed)
-        final_segmap = cv2.resize(final_segmap, (1024, 1024))
+        # Resize final segmentation map using nearest neighbor interpolation
+        final_segmap = cv2.resize(final_segmap, (1024, 1024), interpolation=cv2.INTER_NEAREST)
 
         output_file = save_dir / f"{image_id}.png"
         cv2.imwrite(str(output_file), final_segmap)
         tqdm.write(f"Saved {output_file}", end="\r")
-        
 
 
 def create_segmaps(mask_files: t.Dict[str, t.List[Path]], save_dir: Path) -> None:
