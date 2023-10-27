@@ -4,7 +4,7 @@ hydra:
   output_subdir: 'yamls'
 
 dataset_module:
-  dataset_root: '/home/enes/lab/head-segmentation/processed_dataset'
+  dataset_root: '/home/enes/lab/processed_dataset'
   nn_image_input_resolution: 256
   batch_size: 4
   all_augmentations: true

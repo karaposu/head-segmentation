@@ -8,7 +8,6 @@ import head_segmentation.segmentation_pipeline as seg_pipeline
 from prettytable import PrettyTable
 import numpy as np
 
-
 class CustomHeadSegmentationPipeline(seg_pipeline.HumanHeadSegmentationPipeline):
     def predict(self, image: np.ndarray, name) -> np.ndarray:
         t0=time()
@@ -40,7 +39,9 @@ class CustomHeadSegmentationPipeline(seg_pipeline.HumanHeadSegmentationPipeline)
 
 print("----Loading Test images----")
 #img path for one of orignal celebA images (1024x1024)
-image_path= "/home/enes/lab/head-segmentation/processed_dataset/test/images/1000.jpg"
+image_path= "/home/enes/lab/processed_dataset/test/images/1000.jpg"
+# image_path= "/home/enes/lab/head-segmentation/processed_dataset/test/images/1000.jpg"
+
 
 image = cv2.imread(str(image_path), cv2.IMREAD_COLOR)
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
