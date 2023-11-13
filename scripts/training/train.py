@@ -19,6 +19,13 @@ def main(configs: omegaconf.DictConfig) -> None:
     logger.info("🚀 Training process started.")
 
     logger.info("📚 Creating dataset module.")
+
+    classes=["head", "neck",  "background"]
+    class_weights = {
+        "head": 1.0,
+        "neck": 1.0,
+        "background": 1.0
+    }
     # Training data and model modules
     dataset_module = lm.HumanHeadSegmentationDataModule(
         dataset_root=configs.dataset_module.dataset_root,
@@ -31,14 +38,16 @@ def main(configs: omegaconf.DictConfig) -> None:
     )
 
     logger.info("🕸 Creating neural network module.")
+
     nn_module = lm.HumanHeadSegmentationModelModule(
         lr=configs.nn_module.lr,
         encoder_name=configs.nn_module.encoder_name,
         encoder_depth=configs.nn_module.encoder_depth,
         pretrained=configs.nn_module.use_pretrained,
         nn_image_input_resolution=configs.dataset_module.nn_image_input_resolution,
-        background_weight=configs.nn_module.loss.background_weight,
-        head_weight=configs.nn_module.loss.head_weight,
+        classes=classes,
+        class_weights=class_weights
+
     )
  
     # Callbacks

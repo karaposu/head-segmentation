@@ -53,6 +53,9 @@ nn_module:
   encoder_name: 'resnet34'
   encoder_depth: 3
   use_pretrained: true
+  loss:
+      background_weight: 1.0
+      head_weight: 1.0
 #  num_classes: ${len(dataset_module.classes)}  # Automatically computes the number of classes
   num_classes: 2
 

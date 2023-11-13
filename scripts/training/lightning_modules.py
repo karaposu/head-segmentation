@@ -10,50 +10,56 @@ import head_segmentation.image_processing as ip
 import head_segmentation.model as mdl
 import scripts.training.augmentations as aug
 import scripts.training.data_loading as dl
-
+import time
 
 
 import hydra
-@hydra.main(
-    config_path=os.path.join(os.getcwd(), "configs"), config_name="training_experiment"
-)
-# configs: omegaconf.DictConfig
-class HumanHeadSegmentationModelModule(pl.LightningModule):
-    def __init__(
-            self,
-            *,
-            lr: float,
-            encoder_name: str,
-            encoder_depth: int,
-            pretrained: bool,
-            nn_image_input_resolution: int,
-            classes: List[str],
-            class_weights: Dict[str, float]
-    ):
-        super().__init__()
 
-        self.learning_rate = lr
 
-        # Convert class_weights dictionary to tensor
-        weights_tensor = torch.tensor([class_weights[cls] for cls in classes])
 
-        self.criterion = torch.nn.CrossEntropyLoss(weight=weights_tensor)
 
-        num_classes = len(classes)
-        self.train_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-        self.val_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-        self.test_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-
-        self.neural_net = mdl.HeadSegmentationModel(
-            encoder_name=encoder_name,
-            encoder_depth=encoder_depth,
-            pretrained=pretrained,
-            nn_image_input_resolution=nn_image_input_resolution,
-            # num_classes=num_classes
-            num_classes = len(config.dataset_module.classes)
-        )
-
-        self.save_hyperparameters()
+# @hydra.main(
+#     config_path=os.path.join(os.getcwd(), "configs"), config_name="training_experiment"
+# )
+# # configs: omegaconf.DictConfig
+# class HumanHeadSegmentationModelModule(pl.LightningModule):
+#     def __init__(
+#             self,
+#             *,
+#             lr: float,
+#             encoder_name: str,
+#             encoder_depth: int,
+#             pretrained: bool,
+#             nn_image_input_resolution: int,
+#             classes: list[str],
+#             class_weights: dict[str, float]
+#     ):
+#         super().__init__()
+#
+#         self.learning_rate = lr
+#
+#         # Convert class_weights dictionary to tensor
+#         weights_tensor = torch.tensor([class_weights[cls] for cls in classes])
+#
+#         self.criterion = torch.nn.CrossEntropyLoss(weight=weights_tensor)
+#
+#         num_classes = len(classes)
+#         self.train_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+#         self.val_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+#         self.test_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
+#
+#         self.neural_net = mdl.HeadSegmentationModel(
+#             encoder_name=encoder_name,
+#             encoder_depth=encoder_depth,
+#             pretrained=pretrained,
+#             nn_image_input_resolution=nn_image_input_resolution,
+#             # num_classes=num_classes
+#             # num_classes = len(config.dataset_module.classes)
+#             num_classes = 2
+#
+#         )
+#
+#         self.save_hyperparameters()
 
 
 class HumanHeadSegmentationDataModule(pl.LightningDataModule):
@@ -144,8 +150,8 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
             encoder_depth: int,
             pretrained: bool,
             nn_image_input_resolution: int,
-            classes: List[str],
-            class_weights: Dict[str, float]
+            classes: list[str],
+            class_weights: dict[str, float]
     ):
         super().__init__()
 
@@ -167,6 +173,7 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
             pretrained=pretrained,
             nn_image_input_resolution=nn_image_input_resolution,
             num_classes=num_classes
+             # num_classes = 2
         )
 
         self.save_hyperparameters()
@@ -175,8 +182,8 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
         self.learning_rate = lr
 
         # Adjust the weights for CrossEntropyLoss
-        class_weights = torch.tensor([background_weight, hair_weight, face_weight, neck_weight])
-        self.criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
+        # class_weights = torch.tensor([background_weight, hair_weight, face_weight, neck_weight])
+        self.criterion = torch.nn.CrossEntropyLoss(weight=weights_tensor)
 
         # Adjust the number of classes for metrics
         num_classes = len(class_weights)
@@ -275,113 +282,113 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
         cm_metric.reset()
 
 
-class HumanHeadSegmentationModelModule(pl.LightningModule):
-    def __init__(
-        self,
-        *,
-        lr: float,
-        encoder_name: str,
-        encoder_depth: int,
-        pretrained: bool,
-        nn_image_input_resolution: int,
-        background_weight: float = 1.0,
-        head_weight: float = 1.0,
-    ):
-        super().__init__()
-        self.save_hyperparameters()
-
-        self.learning_rate = lr
-        self.criterion = torch.nn.CrossEntropyLoss(
-            weight=torch.tensor([background_weight, head_weight])
-        )
-
-        self.train_cm_metric = MulticlassConfusionMatrix(num_classes=2)
-        self.val_cm_metric = MulticlassConfusionMatrix(num_classes=2)
-        self.test_cm_metric = MulticlassConfusionMatrix(num_classes=2)
-
-        self.neural_net = mdl.HeadSegmentationModel(
-            encoder_name=encoder_name,
-            encoder_depth=encoder_depth,
-            pretrained=pretrained,
-            nn_image_input_resolution=nn_image_input_resolution,
-        )
-    
-    def configure_optimizers(self) -> torch.optim.Optimizer:
-        return torch.optim.Adam(self.neural_net.parameters(), lr=self.learning_rate)
-
-    def training_step(
-        self, batch: t.Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> pl.utilities.types.STEP_OUTPUT:
-        step_results = self._step(batch, cm_metric=self.train_cm_metric)
-
-        self.log("train_step_loss", step_results["loss"].item(), on_step=True)
-
-        return step_results
-
-    def validation_step(
-        self, batch: t.Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> pl.utilities.types.STEP_OUTPUT:
-        return self._step(batch, cm_metric=self.val_cm_metric)
-
-    def test_step(
-        self, batch: t.Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> pl.utilities.types.STEP_OUTPUT:
-        start_time = time.time()
-        step_output = self._step(batch, cm_metric=self.test_cm_metric)
-        end_time = time.time()
-        inference_time = end_time - start_time
-        step_output["inference_time"] = inference_time
-        return step_output
-
-    def training_epoch_end(self, outputs: pl.utilities.types.EPOCH_OUTPUT) -> None:
-        self._summarize_epoch(
-            log_prefix="train", outputs=outputs, cm_metric=self.train_cm_metric
-        )
-
-    def validation_epoch_end(self, outputs: pl.utilities.types.EPOCH_OUTPUT) -> None:
-        self._summarize_epoch(
-            log_prefix="val", outputs=outputs, cm_metric=self.val_cm_metric
-        )
-
-    def test_epoch_end(self, outputs: pl.utilities.types.EPOCH_OUTPUT) -> None:
-        self._summarize_epoch(
-            log_prefix="test", outputs=outputs, cm_metric=self.test_cm_metric
-        )
-
-    def _step(
-        self, batch: t.Tuple[torch.Tensor, torch.Tensor], cm_metric: MulticlassConfusionMatrix
-    ) -> pl.utilities.types.STEP_OUTPUT:
-        image, true_segmap = batch
-
-        pred_segmap = self.neural_net(image)
-
-        loss = self.criterion(pred_segmap, true_segmap)
-
-        cm_metric(pred_segmap, true_segmap)
-
-        return {"loss": loss}
-
-    def _summarize_epoch(
-        self,
-        log_prefix: str,
-        outputs: pl.utilities.types.EPOCH_OUTPUT,
-        cm_metric: MulticlassConfusionMatrix,
-    ) -> None:
-        mean_loss = torch.tensor([out["loss"] for out in outputs]).mean()
-        self.log(f"{log_prefix}_loss", mean_loss, on_epoch=True)
-
-        cm = cm_metric.compute()
-        cm = cm.detach()
-
-        ious = cm.diag() / (cm.sum(dim=1) + cm.sum(dim=0) - cm.diag() + 1e-15)
-        background_iou, head_iou = ious[0], ious[1]
-        mIoU = ious.mean()
-        if "inference_time" in outputs[0]:
-            avg_inference_time = torch.tensor([out["inference_time"] for out in outputs]).mean()
-            self.log(f"{log_prefix}_avg_inference_time", avg_inference_time, on_epoch=True)
-
-        self.log(f"{log_prefix}_background_IoU", background_iou, on_epoch=True)
-        self.log(f"{log_prefix}_head_IoU", head_iou, on_epoch=True)
-        self.log(f"{log_prefix}_mIoU", mIoU, on_epoch=True)
-
-        cm_metric.reset()
+# class HumanHeadSegmentationModelModule(pl.LightningModule):
+#     def __init__(
+#         self,
+#         *,
+#         lr: float,
+#         encoder_name: str,
+#         encoder_depth: int,
+#         pretrained: bool,
+#         nn_image_input_resolution: int,
+#         background_weight: float = 1.0,
+#         head_weight: float = 1.0,
+#     ):
+#         super().__init__()
+#         self.save_hyperparameters()
+#
+#         self.learning_rate = lr
+#         self.criterion = torch.nn.CrossEntropyLoss(
+#             weight=torch.tensor([background_weight, head_weight])
+#         )
+#
+#         self.train_cm_metric = MulticlassConfusionMatrix(num_classes=2)
+#         self.val_cm_metric = MulticlassConfusionMatrix(num_classes=2)
+#         self.test_cm_metric = MulticlassConfusionMatrix(num_classes=2)
+#
+#         self.neural_net = mdl.HeadSegmentationModel(
+#             encoder_name=encoder_name,
+#             encoder_depth=encoder_depth,
+#             pretrained=pretrained,
+#             nn_image_input_resolution=nn_image_input_resolution,
+#         )
+#
+#     def configure_optimizers(self) -> torch.optim.Optimizer:
+#         return torch.optim.Adam(self.neural_net.parameters(), lr=self.learning_rate)
+#
+#     def training_step(
+#         self, batch: t.Tuple[torch.Tensor, torch.Tensor], batch_idx: int
+#     ) -> pl.utilities.types.STEP_OUTPUT:
+#         step_results = self._step(batch, cm_metric=self.train_cm_metric)
+#
+#         self.log("train_step_loss", step_results["loss"].item(), on_step=True)
+#
+#         return step_results
+#
+#     def validation_step(
+#         self, batch: t.Tuple[torch.Tensor, torch.Tensor], batch_idx: int
+#     ) -> pl.utilities.types.STEP_OUTPUT:
+#         return self._step(batch, cm_metric=self.val_cm_metric)
+#
+#     def test_step(
+#         self, batch: t.Tuple[torch.Tensor, torch.Tensor], batch_idx: int
+#     ) -> pl.utilities.types.STEP_OUTPUT:
+#         start_time = time.time()
+#         step_output = self._step(batch, cm_metric=self.test_cm_metric)
+#         end_time = time.time()
+#         inference_time = end_time - start_time
+#         step_output["inference_time"] = inference_time
+#         return step_output
+#
+#     def training_epoch_end(self, outputs: pl.utilities.types.EPOCH_OUTPUT) -> None:
+#         self._summarize_epoch(
+#             log_prefix="train", outputs=outputs, cm_metric=self.train_cm_metric
+#         )
+#
+#     def validation_epoch_end(self, outputs: pl.utilities.types.EPOCH_OUTPUT) -> None:
+#         self._summarize_epoch(
+#             log_prefix="val", outputs=outputs, cm_metric=self.val_cm_metric
+#         )
+#
+#     def test_epoch_end(self, outputs: pl.utilities.types.EPOCH_OUTPUT) -> None:
+#         self._summarize_epoch(
+#             log_prefix="test", outputs=outputs, cm_metric=self.test_cm_metric
+#         )
+#
+#     def _step(
+#         self, batch: t.Tuple[torch.Tensor, torch.Tensor], cm_metric: MulticlassConfusionMatrix
+#     ) -> pl.utilities.types.STEP_OUTPUT:
+#         image, true_segmap = batch
+#
+#         pred_segmap = self.neural_net(image)
+#
+#         loss = self.criterion(pred_segmap, true_segmap)
+#
+#         cm_metric(pred_segmap, true_segmap)
+#
+#         return {"loss": loss}
+#
+#     def _summarize_epoch(
+#         self,
+#         log_prefix: str,
+#         outputs: pl.utilities.types.EPOCH_OUTPUT,
+#         cm_metric: MulticlassConfusionMatrix,
+#     ) -> None:
+#         mean_loss = torch.tensor([out["loss"] for out in outputs]).mean()
+#         self.log(f"{log_prefix}_loss", mean_loss, on_epoch=True)
+#
+#         cm = cm_metric.compute()
+#         cm = cm.detach()
+#
+#         ious = cm.diag() / (cm.sum(dim=1) + cm.sum(dim=0) - cm.diag() + 1e-15)
+#         background_iou, head_iou = ious[0], ious[1]
+#         mIoU = ious.mean()
+#         if "inference_time" in outputs[0]:
+#             avg_inference_time = torch.tensor([out["inference_time"] for out in outputs]).mean()
+#             self.log(f"{log_prefix}_avg_inference_time", avg_inference_time, on_epoch=True)
+#
+#         self.log(f"{log_prefix}_background_IoU", background_iou, on_epoch=True)
+#         self.log(f"{log_prefix}_head_IoU", head_iou, on_epoch=True)
+#         self.log(f"{log_prefix}_mIoU", mIoU, on_epoch=True)
+#
+#         cm_metric.reset()
