@@ -9,7 +9,7 @@ from loguru import logger
 
 import scripts.training.lightning_modules as lm
 
-import hydra
+
 @hydra.main(
     config_path=os.path.join(os.getcwd(), "configs"), config_name="training_experiment"
 )

@@ -4,17 +4,19 @@ import random
 import shutil
 import typing as t
 from pathlib import Path
+import os
+import hydra
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Preprocess dataset.")
-
-    # fmt: off
-    parser.add_argument("--preprocessed_dset", "-d", type=Path, required=True, help="Preprocessed CelebA dataset directory.")
-    parser.add_argument("--output_dset_root", "-o", type=Path, required=True, help="Output dataset directory.")
-    # fmt: on
-
-    return parser.parse_args()
+# def parse_args() -> argparse.Namespace:
+#     parser = argparse.ArgumentParser(description="Preprocess dataset.")
+#
+#     # fmt: off
+#     parser.add_argument("--preprocessed_dset", "-d", type=Path, required=True, help="Preprocessed CelebA dataset directory.")
+#     parser.add_argument("--output_dset_root", "-o", type=Path, required=True, help="Output dataset directory.")
+#     # fmt: on
+#
+#     return parser.parse_args()
 
 
 def load_images(dset_path: Path) -> t.List[str]:
@@ -76,29 +78,39 @@ def copy_sample(image_file: Path, dset_path: Path) -> None:
     segmap_path = image_file.parent.parent / "segmaps" / f"{image_file.stem}.png"
     shutil.copy(segmap_path, dset_path / "segmaps" / segmap_path.name)
 
-
-def main() -> None:
+@hydra.main(
+    config_path=os.path.join(os.getcwd(), "configs"), config_name="training_experiment"
+)
+def main(configs) -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s"
     )
 
     logging.info("Building dataset STARTED")
-    args = parse_args()
+    # args = parse_args()
+    # "--preprocessed_dset", "-d", type = Path, required = True, help = "Preprocessed CelebA dataset directory.")
+    # parser.add_argument("--output_dset_root"
+    #
+    output_dset_dir = configs["dataset_module"]["output_dset_dir"]
+    preprocessed_dset_dir = configs["dataset_module"]["preprocessed_dset_dir"]
 
-    image_files = load_images(args.preprocessed_dset)
+    preprocessed_dset_dir = Path(preprocessed_dset_dir)
+    output_dset_dir = Path(output_dset_dir)
+
+    image_files = load_images(preprocessed_dset_dir)
     train_dset, val_dset, test_dset = split_dataset(image_files)
 
-    create_dataset_structure(args.output_dset_root)
+    create_dataset_structure(output_dset_dir)
 
     copy_images_to_dataset_dir(
         train_dset=train_dset,
         val_dset=val_dset,
         test_dset=test_dset,
-        output_dset_root=args.output_dset_root,
+        output_dset_root=output_dset_dir,
     )
     shutil.copy(
-        src=args.preprocessed_dset / "metadata.csv",
-        dst=args.output_dset_root / "metadata.csv",
+        src=preprocessed_dset_dir/ "metadata.csv",
+        dst=output_dset_dir / "metadata.csv",
     )
 
     logging.info("Building dataset FINISHED")

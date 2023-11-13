@@ -1,12 +1,15 @@
-
-# image_path= "/home/enes/lab/head-segmentation/hb_img1.png"
-
+#
+# # image_path= "/home/enes/lab/head-segmentation/hb_img1.png"
+#
 from time import time
 import cv2
 import torch
 import head_segmentation.segmentation_pipeline as seg_pipeline
 from prettytable import PrettyTable
 import numpy as np
+
+print(torch.__version__)
+
 
 class CustomHeadSegmentationPipeline(seg_pipeline.HumanHeadSegmentationPipeline):
     def predict(self, image: np.ndarray, name) -> np.ndarray:
@@ -63,9 +66,14 @@ print("----    ----")
 print("  ")
 
 
-model_path_mobilenet_v2= "/home/enes/lab/head-segmentation/training_runs/2023-10-22/00-16/models/last.ckpt"
-model_path_resnet34= "/home/enes/lab/head-segmentation/training_runs/2023-10-22/21-22/models/last.ckpt"
-model_path_resnet34_256="/home/enes/lab/head-segmentation/training_runs/2023-10-26/18-54/models/last.ckpt"
+model_path_mobilenet_v2= "/home/enes/lab/training_runs/2023-10-22/00-16/models/last.ckpt"
+model_path_resnet34= "/home/enes/lab/training_runs/2023-10-22/21-22/models/last.ckpt"
+model_path_resnet34_256="/home/enes/lab/training_runs/2023-10-26/18-54/models/last.ckpt"
+
+
+# model_path_mobilenet_v2= "/home/enes/lab/head-segmentation/training_runs/2023-10-22/00-16/models/last.ckpt"
+# model_path_resnet34= "/home/enes/lab/head-segmentation/training_runs/2023-10-22/21-22/models/last.ckpt"
+# model_path_resnet34_256="/home/enes/lab/head-segmentation/training_runs/2023-10-26/18-54/models/last.ckpt"
 
 
 model_path=model_path_resnet34_256
