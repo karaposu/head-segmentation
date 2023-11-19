@@ -10,6 +10,7 @@ import pandas as pd
 from tqdm import tqdm
 import os
 import hydra
+from typing import Dict, List
 
 # def parse_args() -> argparse.Namespace:
 #     parser = argparse.ArgumentParser(description="Preprocess dataset.")
@@ -120,10 +121,133 @@ def load_mask_files(src_path: Path) -> t.Dict[str, t.List[Path]]:
 #     # Add other parts as needed
 # }
 
-from hydra import compose, initialize
+def create_multiclass_segmaps(mask_files: Dict[str, List[Path]],
+                              save_dir: Path,
+                              classes,
+                              composite_classes: Dict[str, List[str]]):
+    logging.basicConfig(level=logging.INFO)
+    logging.info(
+        f"Creating segmentation masks and saving as PNG files in {save_dir}..."
+    )
+    # for i,(image_id, mask_paths) in enumerate(mask_files.items()):
+
+    for image_id, mask_paths in tqdm(mask_files.items()):
+        final_segmap = np.zeros((512, 512, len(classes) + 1), dtype=np.uint8)  # +1 for background
+
+        for mask_file in mask_paths:
+            mask_image = cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE)
+            mask_image = np.where(mask_image > 0, 1, 0)
+            matched = False
+
+            for class_idx, class_name in enumerate(classes):
+                if class_name in composite_classes:
+                    for sub_part in composite_classes[class_name]:
+                        if f'_{sub_part}' in str(mask_file):
+                            matched = True
+                            final_segmap[:, :, class_idx] = np.maximum(final_segmap[:, :, class_idx], mask_image)
+                else:
+                    # Handle non-composite classes
+                    if f'_{class_name}' in str(mask_file):
+                        matched = True
+                        final_segmap[:, :, class_idx] = np.maximum(final_segmap[:, :, class_idx], mask_image)
+
+            # if not matched:
+            #     print(f"No match found for {mask_file}")
+
+        # Background handling: mark background where all other classes are absent
+        background_index = len(classes)  # index for the background
+        final_segmap[:, :, background_index] = np.all(final_segmap[:, :, :background_index] == 0, axis=2)
+
+        final_segmap = cv2.resize(final_segmap, (1024, 1024), interpolation=cv2.INTER_NEAREST)
+        output_file = save_dir / f"{image_id}.png"
+        cv2.imwrite(str(output_file), final_segmap)
+        tqdm.write(f"Saved {output_file}", end="\r")
+
+# def create_multiclass_segmaps(mask_files: Dict[str, List[Path]],
+#                               save_dir: Path,
+#                               classes,
+#                               composite_classes: Dict[str, List[str]]):
+#     logging.basicConfig(level=logging.INFO)
+#     logging.info(
+#         f"Creating segmentation masks and saving as PNG files in {save_dir}..."
+#     )
+#
+#     for i,(image_id, mask_paths) in enumerate(mask_files.items()):
+#       if i==0:
+#         final_segmap = np.zeros((512, 512, len(classes) + 1), dtype=np.uint8)  # +1 for background
+#
+#         for mask_file in mask_paths:
+#             mask_image = cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE)
+#             matched = False
+#
+#             for class_idx, class_name in enumerate(classes):
+#                 if class_name in composite_classes:
+#                     for sub_part in composite_classes[class_name]:
+#                         if f'_{sub_part}' in str(mask_file):
+#                             matched = True
+#                             final_segmap[:, :, class_idx] = np.maximum(final_segmap[:, :, class_idx], mask_image)
+#
+#             if not matched:
+#                 print(f"No match found for {mask_file}")
+#
+#         # Background handling: mark background where all other classes are absent
+#         background_index = len(classes)  # index for the background
+#         final_segmap[:, :, background_index] = np.all(final_segmap[:, :, :background_index] == 0, axis=2)
+#
+#         final_segmap = cv2.resize(final_segmap, (1024, 1024), interpolation=cv2.INTER_NEAREST)
+#         output_file = save_dir / f"{image_id}.png"
+#         cv2.imwrite(str(output_file), final_segmap)
+#         tqdm.write(f"Saved {output_file}", end="\r")
+
+# Example usage of the function
+# You would need to define 'mask_files', 'save_dir', 'classes', and 'composite_classes' according to your data and requirements.
+
+# def create_multiclass_segmaps(mask_files: Dict[str, List[Path]],
+#                               save_dir: Path,
+#                               classes,
+#                               composite_classes: Dict[str, List[str]]):
+#     logging.basicConfig(level=logging.INFO)
+#     logging.info(
+#         f"Creating segmentation masks and saving as PNG files in {save_dir}..."
+#     )
+#
+#     PARTS = {class_name: f'_{class_name}' for class_name in classes}
+#     print("PARTS: ", PARTS)
+#
+#     relevant_parts = set(PARTS.values())
+#     for composite in composite_classes.values():
+#         relevant_parts.update(f'_{sub_part}' for sub_part in composite)
+#
+#     for image_id, mask_paths in tqdm(mask_files.items()):
+#         final_segmap = np.zeros((512, 512, len(classes) + 1), dtype=np.uint8)  # +1 for background
+#
+#         for mask_file in mask_paths:
+#             if any(part in str(mask_file) for part in relevant_parts):
+#                 mask_image = cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE)
+#
+#                 for class_idx, part in enumerate(PARTS.values()):
+#                     if part in composite_classes:
+#                         if any(f'_{sub_part}' in str(mask_file) for sub_part in composite_classes[part]):
+#                             final_segmap[:, :, class_idx] = np.maximum(final_segmap[:, :, class_idx], mask_image)
+#                     else:
+#                         if part in str(mask_file):
+#                             final_segmap[:, :, class_idx] = np.maximum(final_segmap[:, :, class_idx], mask_image)
+#
+#         # Background handling: mark background where all other classes are absent
+#         background_index = len(classes)  # index for the background
+#         final_segmap[:, :, background_index] = np.all(final_segmap[:, :, :background_index] == 0, axis=2)
+#
+#         final_segmap = cv2.resize(final_segmap, (1024, 1024), interpolation=cv2.INTER_NEAREST)
+#         output_file = save_dir / f"{image_id}.png"
+#         cv2.imwrite(str(output_file), final_segmap)
+#         tqdm.write(f"Saved {output_file}", end="\r")
 
 
-def create_multiclass_segmaps(mask_files: t.Dict[str, t.List[Path]],
+
+
+
+
+def create_multiclass_segmaps_pixel_wise(mask_files: t.Dict[str, t.List[Path]],
                               save_dir: Path,
                               classes,
                               composite_classes: t.Dict[str, t.List[str]]
@@ -267,6 +391,7 @@ def main(configs) -> None:
     print("composite_classes",composite_classes )
     classes= configs["dataset_module"]["classes"]
     create_multiclass_segmaps(mask_files=mask_files, save_dir=new_segmap_dir , classes=classes, composite_classes=composite_classes )
+
     logging.info("Creating preprocessed dataset FINISHED")
 
 

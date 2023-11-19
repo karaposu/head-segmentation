@@ -1,13 +1,12 @@
 import datetime
 import os
 import warnings
-
 import hydra
 import omegaconf
 import pytorch_lightning as pl
 from loguru import logger
-
 import scripts.training.lightning_modules as lm
+from utils import get_latest_model_checkpoint_path
 
 
 @hydra.main(
@@ -38,6 +37,12 @@ def main(configs: omegaconf.DictConfig) -> None:
     )
 
     logger.info("🕸 Creating neural network module.")
+    # if os.path.isdir(configs.nn_module.model_save_path):
+    if configs.training.continue_from_last_checkpoint=="true":
+        last_checkpoint=get_latest_model_checkpoint_path(configs.hydra.run.dir)
+        if last_checkpoint is not None:
+            #load model from ckpt file.
+            pass
 
     nn_module = lm.HumanHeadSegmentationModelModule(
         lr=configs.nn_module.lr,
@@ -46,10 +51,11 @@ def main(configs: omegaconf.DictConfig) -> None:
         pretrained=configs.nn_module.use_pretrained,
         nn_image_input_resolution=configs.dataset_module.nn_image_input_resolution,
         classes=classes,
-        class_weights=class_weights
+        class_weights=class_weights,
+        load_last=None
 
     )
- 
+
     # Callbacks
     logger.info("📲 Initializing callbacks.")
     early_stop_callback = pl.callbacks.early_stopping.EarlyStopping(
@@ -79,6 +85,9 @@ def main(configs: omegaconf.DictConfig) -> None:
 
     # Training env configs
     logger.info("🌍 Initializing training environment.")
+
+
+
     nn_trainer = pl.Trainer(
         logger=wandb_logger,
         log_every_n_steps=1,

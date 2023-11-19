@@ -17,51 +17,6 @@ import hydra
 
 
 
-
-# @hydra.main(
-#     config_path=os.path.join(os.getcwd(), "configs"), config_name="training_experiment"
-# )
-# # configs: omegaconf.DictConfig
-# class HumanHeadSegmentationModelModule(pl.LightningModule):
-#     def __init__(
-#             self,
-#             *,
-#             lr: float,
-#             encoder_name: str,
-#             encoder_depth: int,
-#             pretrained: bool,
-#             nn_image_input_resolution: int,
-#             classes: list[str],
-#             class_weights: dict[str, float]
-#     ):
-#         super().__init__()
-#
-#         self.learning_rate = lr
-#
-#         # Convert class_weights dictionary to tensor
-#         weights_tensor = torch.tensor([class_weights[cls] for cls in classes])
-#
-#         self.criterion = torch.nn.CrossEntropyLoss(weight=weights_tensor)
-#
-#         num_classes = len(classes)
-#         self.train_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-#         self.val_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-#         self.test_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-#
-#         self.neural_net = mdl.HeadSegmentationModel(
-#             encoder_name=encoder_name,
-#             encoder_depth=encoder_depth,
-#             pretrained=pretrained,
-#             nn_image_input_resolution=nn_image_input_resolution,
-#             # num_classes=num_classes
-#             # num_classes = len(config.dataset_module.classes)
-#             num_classes = 2
-#
-#         )
-#
-#         self.save_hyperparameters()
-
-
 class HumanHeadSegmentationDataModule(pl.LightningDataModule):
     def __init__(
         self,
@@ -150,55 +105,38 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
             encoder_depth: int,
             pretrained: bool,
             nn_image_input_resolution: int,
+            load_last: str ,
             classes: list[str],
             class_weights: dict[str, float]
     ):
         super().__init__()
-
-        self.learning_rate = lr
-
-        # Convert class_weights dictionary to tensor
-        weights_tensor = torch.tensor([class_weights[cls] for cls in classes])
-
-        self.criterion = torch.nn.CrossEntropyLoss(weight=weights_tensor)
-
-        num_classes = len(classes)
-        self.train_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-        self.val_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-        self.test_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
-
-        self.neural_net = mdl.HeadSegmentationModel(
-            encoder_name=encoder_name,
-            encoder_depth=encoder_depth,
-            pretrained=pretrained,
-            nn_image_input_resolution=nn_image_input_resolution,
-            num_classes=num_classes
-             # num_classes = 2
-        )
-
         self.save_hyperparameters()
 
+        weights_tensor = torch.tensor([class_weights[cls] for cls in classes])
+        num_classes = len(classes)
+        num_classes = len(class_weights)
 
         self.learning_rate = lr
-
-        # Adjust the weights for CrossEntropyLoss
-        # class_weights = torch.tensor([background_weight, hair_weight, face_weight, neck_weight])
         self.criterion = torch.nn.CrossEntropyLoss(weight=weights_tensor)
 
-        # Adjust the number of classes for metrics
-        num_classes = len(class_weights)
+
         self.train_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
         self.val_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
         self.test_cm_metric = MulticlassConfusionMatrix(num_classes=num_classes)
 
-        # Ensure your neural network outputs the correct number of channels
-        self.neural_net = mdl.HeadSegmentationModel(
-            encoder_name=encoder_name,
-            encoder_depth=encoder_depth,
-            pretrained=pretrained,
-            nn_image_input_resolution=nn_image_input_resolution,
-            num_classes=num_classes  # This is just an example; the actual implementation might differ
-        )
+        if load_last:
+
+            self.neural_net=mdl.HeadSegmentationModel.load_from_checkpoint(load_last)
+
+        else:
+            self.neural_net = mdl.HeadSegmentationModel(
+                encoder_name=encoder_name,
+                encoder_depth=encoder_depth,
+                pretrained=pretrained,
+                nn_image_input_resolution=nn_image_input_resolution,
+                num_classes=num_classes
+                 # num_classes = 2
+            )
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         return torch.optim.Adam(self.neural_net.parameters(), lr=self.learning_rate)
@@ -252,7 +190,7 @@ class HumanHeadSegmentationModelModule(pl.LightningModule):
         loss = self.criterion(pred_segmap, true_segmap)
 
         cm_metric(pred_segmap, true_segmap)
-
+   
         return {"loss": loss}
 
     def _summarize_epoch(

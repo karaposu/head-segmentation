@@ -5,11 +5,6 @@ import typing as t
 import segmentation_models_pytorch as smp
 import torch
 
-
-
-
-
-
 class HeadSegmentationModel(smp.Unet):
     @staticmethod
     def load_from_checkpoint(ckpt_path: str) -> HeadSegmentationModel:
@@ -21,6 +16,7 @@ class HeadSegmentationModel(smp.Unet):
             encoder_depth=hparams["encoder_depth"],
             pretrained=False,
             nn_image_input_resolution=hparams["nn_image_input_resolution"],
+            num_classes=3
         )
 
         weigths = {
@@ -38,6 +34,7 @@ class HeadSegmentationModel(smp.Unet):
         nn_image_input_resolution: int,
         num_classes: int ,
     ):
+        
         super().__init__(
             encoder_name=encoder_name,
             encoder_depth=encoder_depth,
