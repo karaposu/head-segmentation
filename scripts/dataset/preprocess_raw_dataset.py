@@ -30,6 +30,61 @@ def create_structure(root_path: Path) -> t.Tuple[Path, Path]:
     return images_path, segmaps_path
 
 
+
+
+def get_only_existing_masks(all_relevant_masks_for_this_class,all_masks_for_that_image ):
+    composite_masks = []
+    # print(all_masks_for_that_image)
+    for mask in all_masks_for_that_image:
+        first_underscore_index = str(mask).find('_')
+        dot_index = str(mask).find('.')
+        v=str(mask)[first_underscore_index + 1:dot_index]
+        # v=str(mask)[last_underscore_index + 1:]
+        if v in all_relevant_masks_for_this_class:
+            composite_masks.append(mask)
+    return composite_masks
+
+
+def gather_relevant_masks(cls,composite_classes ):
+    # composite_masks.extend([mask for mask in all_masks_for_that_image if f'_{sub_part}' in str(mask)])
+
+    relevant_masks=[]
+    if composite_classes is not None:
+        if cls in composite_classes:
+            for sub_class in composite_classes[cls]:
+                relevant_masks.append(sub_class)
+        else:
+            relevant_masks.append(cls)
+    if composite_classes is None:
+        relevant_masks.append(cls)
+
+    return relevant_masks
+
+ #
+ #
+ # for main_cls, class_info in CLASSES.items():
+ #            all_sub_cls_masks=[]
+ #            # check if main cls is composite
+ #            # if it is composite, collect all sub_masks in a list
+ #            # if it is not composite collect that mask in a list
+
+def create_relevant_classes_list( classes, composite_classes):
+        relevant_classes=[]
+        # (classes: head neck)
+        if composite_classes is not None:
+            for cls in classes:
+                if cls in composite_classes:
+                    for sub_class in composite_classes[cls]:
+                        relevant_classes.append(sub_class)
+                else:
+                    relevant_classes.append(cls)
+        if composite_classes is None:
+            pass
+
+        return relevant_classes
+
+
+
 def create_metadata_csv(attribute_txt: Path, output_dset_path: Path) -> None:
     logging.info(
         f"Creating metadata.csv file and saving in directory {output_dset_path}..."
@@ -140,72 +195,76 @@ def create_multiclass_segmaps(mask_files: Dict[str, List[Path]],
 def create_multiclass_segmaps_pixel_wise(mask_files: t.Dict[str, t.List[Path]],
                               save_dir: Path,
                               classes,
-                              composite_classes: t.Dict[str, t.List[str]]
+                              composite_classes: t.Dict[str, t.List[str]]  ) :
+    logging.info( f"Creating seg masks and saving as PNG files in {save_dir}..." )
 
-                              ) :
-    logging.info(
-        f"Creating segmentation masks and saving as PNG files in {save_dir}..."
-    )
 
-    # for image_id, mask_paths in mask_files.items():
-    #     mask_images = [cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE) for mask_file in mask_paths]
+    class_dict = {class_name: { 'value': idx + 1} for idx, class_name in enumerate(classes)}
+    print(" ")
+    print(" ")
+    print("CLASSES: ", class_dict)
 
-    # Ensure 'classes' is loaded from your config or is defined somewhere
-    PARTS = {class_name: {'suffix': f'_{class_name}', 'value': idx + 1} for idx, class_name in enumerate(classes)}
-    print("PARTS: ",PARTS)
-
-    for i, (image_id, mask_paths) in enumerate(mask_files.items()):
-      # if i==10:
-      if 1 == 1:
-
+    for i, (image_id, all_masks_for_that_image) in enumerate(mask_files.items()):
+      # if i==0:
         final_segmap = np.zeros((512, 512), dtype=np.uint8)
-        # print(" len image_id:", len(image_id))
-        # print(" len mask_paths:", len(mask_paths))
-        for part, class_info in PARTS.items():
-            # print("------ part :", part)
-            # print("------ class_info :", class_info)
+        # print("class_dict:", class_dict)
 
-            # Check if the class is composite
-          if composite_classes is not None:
-            if part in composite_classes:
-                # print("          part is a composite class")
-                composite_masks = []
-                for sub_part in composite_classes[part]:
-                    composite_masks.extend([mask for mask in mask_paths if f'_{sub_part}' in str(mask)])
-                part_masks = composite_masks
-            else:
-                part_masks = [mask for mask in mask_paths if class_info['suffix'] in str(mask)]
-          if composite_classes is None:
-            part_masks = [mask for mask in mask_paths if class_info['suffix'] in str(mask)]
+        for ii, (main_cls, class_info) in enumerate(class_dict.items()):
+            # print("------ii: ",ii)
+            # print("main_cls:", main_cls, "class_info:", class_info)
+            all_relevant_masks_for_this_class=gather_relevant_masks(main_cls, composite_classes)
+            # print("all_relevant_masks_for_this_class", all_relevant_masks_for_this_class)
+            all_relevant_masks_for_this_class_and_exist_for_this_image=get_only_existing_masks(all_relevant_masks_for_this_class,all_masks_for_that_image )
+            # print("all_relevant_masks_for_this_class_and_exist_for_this_image", all_relevant_masks_for_this_class_and_exist_for_this_image)
+            # if 1==1:
+            if all_relevant_masks_for_this_class_and_exist_for_this_image:
+                mask_images = [  cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE) for mask_file in all_relevant_masks_for_this_class_and_exist_for_this_image ]
+                len_masks= len(mask_images)
+                # print("len_masks:", len_masks)
+                shape1= mask_images[0].shape
+                # [print(e.shape) for e in mask_images]
+                mask_images = np.array(mask_images)
+                shape2 = mask_images.shape
+                # print("merged mask_images shape:", mask_images.shape)
+                # print("mask_images shape", mask_images.shape)
+                aggregate_lbls = mask_images.sum(axis=0)
+                # print("aggregate shape", aggregate_lbls.shape)
+                # print("unique aggregate_lbls", np.unique(aggregate_lbls))
+                # print("aggregate_lbls shape:", aggregate_lbls.shape)
+                try:
+                     # print("final_segmap shape:", final_segmap.shape)
+                     aggregate_lbls[aggregate_lbls > 0] = class_info['value']
+                     final_segmap += aggregate_lbls
+                     # print("afer += final_segmap shape:", final_segmap.shape)
+                # except ValueError:
+                except Exception as e:
 
-            if not part_masks:
-                continue
+                    print(e)
+                    # print("ValueError catched")
+                    #
+                    #
+                    # print("len_masks:", len_masks)
+                    # print("i:", i, "image_id:", image_id)
+                    # print("main_cls:", main_cls, "class_info:",class_info )
+                    # print("all_relevant_masks_for_this_class", all_relevant_masks_for_this_class)
+                    # print("all_relevant_masks_for_this_class_and_exist_for_this_image", all_relevant_masks_for_this_class_and_exist_for_this_image)
+                    # print("shape1:", shape1)
+                    # print("shape2:", shape2)
+                    # print("aggregate_lbls.shape:",aggregate_lbls.shape)
 
-            mask_images = [  cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE) for mask_file in part_masks ]
-            # for img in mask_images:
-            #     print(img.shape , np.unique(img))
+                # take only neck intersection part. dismiss other rest of the neck.
+                # final_segmap[final_segmap == 2] = 0
+                final_segmap[final_segmap == 3] = 2
+            # print("final_segmap:", final_segmap.shape, np.unique(final_segmap))
+            # cv2.imwrite('/home/enes/lab/head-segmentation/final_segmap.jpg', final_segmap)
+            # temp=final_segmap.copy()
+            # temp[temp == 0] = 60
+            # temp[temp == 1] = 100
+            # temp[temp == 2] = 150
+            # temp[temp == 3] = 250
+            # cv2.imwrite('/home/enes/lab/head-segmentation/final_segmap2.jpg', temp)
 
-            mask_images = np.array(mask_images)
-            aggregate_lbls = mask_images.sum(axis=0)
-            # print(aggregate_lbls.shape, np.unique(aggregate_lbls))
-            aggregate_lbls[aggregate_lbls > 0] = class_info['value']
-            # print(aggregate_lbls.shape, np.unique(aggregate_lbls))
-
-            # Merge into the final segmentation map
-            final_segmap += aggregate_lbls
-            # take only neck intersection part. dismiss other rest of the neck.
-            # final_segmap[final_segmap == 2] = 0
-            # final_segmap[final_segmap == 3] = 2
-            print("final_segmap:", final_segmap.shape, np.unique(final_segmap))
-            cv2.imwrite('/home/enes/lab/head-segmentation/final_segmap.jpg', final_segmap)
-            temp=final_segmap.copy()
-            temp[temp == 0] = 60
-            temp[temp == 1] = 100
-            temp[temp == 2] = 150
-            temp[temp == 3] = 250
-            cv2.imwrite('/home/enes/lab/head-segmentation/final_segmap2.jpg', temp)
-
-        # Resize final segmentation map using nearest neighbor interpolation
+            # Resize final segmentation map using nearest neighbor interpolation
         final_segmap = cv2.resize(final_segmap, (1024, 1024), interpolation=cv2.INTER_NEAREST)
 
         output_file = save_dir / f"{image_id}.png"
@@ -252,9 +311,7 @@ def main(configs) -> None:
     preprocessed_dset_dir= configs["dataset_module"]["preprocessed_dset_dir"]
     raw_dset_dir= configs["dataset_module"]["raw_dset_dir"]
 
-
-
-    print("    classes", composite_classes)
+    print("    classes", classes)
     print("    composite_classes", composite_classes)
 
     relevant_mask_types = []
@@ -266,7 +323,7 @@ def main(configs) -> None:
 
                 relevant_mask_types.extend( composite_classes[class_name])
             else:
-                relevant_mask_types.extend(class_name)
+                relevant_mask_types.extend([class_name])
         else:
              relevant_mask_types.extend([class_name])
 

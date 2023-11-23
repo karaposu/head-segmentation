@@ -20,19 +20,20 @@ def main(configs: omegaconf.DictConfig) -> None:
     logger.info("📚 Creating dataset module.")
 
     classes=[]
+
     # classes = configs["dataset_module"]["classes"]
     # print("type(classes):",type(classes))
     # print("classes[]0:", classes[0])
+    print(" ")
+    print("  ------ ")
     for c in  configs["dataset_module"]["classes"]:
         classes.append(c)
     classes.append("background")
     print("classes", classes)
-    # classes=["head", "neck",  "background"]
-    class_weights = {
-        # "head": 1.0,
-        "neck": 1.0,
-        "background": 1.0
-    }
+
+    class_weights=configs["dataset_module"]["class_weights"]
+    class_weights=dict(class_weights)
+
 
     # x=y
     # Training data and model modules

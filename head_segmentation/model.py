@@ -18,7 +18,7 @@ class HeadSegmentationModel(smp.Unet):
             encoder_depth=hparams["encoder_depth"],
             pretrained=False,
             nn_image_input_resolution=hparams["nn_image_input_resolution"],
-            num_classes=2
+            num_classes=3
         )
 
         weigths = {
