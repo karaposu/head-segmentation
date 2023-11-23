@@ -19,12 +19,22 @@ def main(configs: omegaconf.DictConfig) -> None:
 
     logger.info("📚 Creating dataset module.")
 
-    classes=["head", "neck",  "background"]
+    classes=[]
+    # classes = configs["dataset_module"]["classes"]
+    # print("type(classes):",type(classes))
+    # print("classes[]0:", classes[0])
+    for c in  configs["dataset_module"]["classes"]:
+        classes.append(c)
+    classes.append("background")
+    print("classes", classes)
+    # classes=["head", "neck",  "background"]
     class_weights = {
-        "head": 1.0,
+        # "head": 1.0,
         "neck": 1.0,
         "background": 1.0
     }
+
+    # x=y
     # Training data and model modules
     dataset_module = lm.HumanHeadSegmentationDataModule(
         dataset_root=configs.dataset_module.dataset_root,
@@ -107,7 +117,8 @@ def main(configs: omegaconf.DictConfig) -> None:
     # Test loop
     logger.info("🧪 Starting testing loop.")
     nn_trainer.test(nn_module, dataset_module)
-
+    # current_working_directory = os.getcwd()
+    # os.path.dirname(cwd)
     logger.success("🏁 Training process finished.")
 
 

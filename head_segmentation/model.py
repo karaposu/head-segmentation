@@ -4,6 +4,8 @@ import typing as t
 
 import segmentation_models_pytorch as smp
 import torch
+import hydra
+
 
 class HeadSegmentationModel(smp.Unet):
     @staticmethod
@@ -16,7 +18,7 @@ class HeadSegmentationModel(smp.Unet):
             encoder_depth=hparams["encoder_depth"],
             pretrained=False,
             nn_image_input_resolution=hparams["nn_image_input_resolution"],
-            num_classes=3
+            num_classes=2
         )
 
         weigths = {

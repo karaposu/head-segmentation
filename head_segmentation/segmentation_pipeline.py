@@ -29,8 +29,10 @@ class HumanHeadSegmentationPipeline:
             gdown.download(model_url, model_path, quiet=False)
 
         self.device = device
+
         ckpt = torch.load(model_path, map_location=torch.device("cpu"))
         hparams = ckpt["hyper_parameters"]
+        print("hparams:", hparams)
 
         self._preprocessing_pipeline = ip.PreprocessingPipeline(
             nn_image_input_resolution=hparams["nn_image_input_resolution"]
@@ -83,45 +85,74 @@ class HumanHeadSegmentationPipeline:
         # # postprocessed = cv2.resize(out, (number_of_channels,w, h), interpolation=cv2.INTER_NEAREST)
         #
         # return out
-    def _postprocess_model_output(
-            self, out: torch.Tensor, original_image: np.ndarray
-    ) -> np.ndarray:
-        # Assuming out has shape (num_classes, height, width)
 
-        # Print and inspect the raw model output
-        print("Raw Model Output Range:", out.min().item(), out.max().item())
+    import torch.nn.functional as F
+    def _postprocess_model_output( self, out: torch.Tensor) -> np.ndarray:
+        out = out.squeeze()
+        out = out.argmax(dim=0)
+        out = out.numpy().astype(np.uint8)
 
-        # Squeeze the channel dimension
-        out = out.squeeze(0)
+        return out
+    # def _postprocess_model_output(
+    #         self, out: torch.Tensor
+    # ) -> np.ndarray:
+    #
+    #     out = out.squeeze()
+    #     out_probabilities = F.softmax(out, dim=0)
+    #     postprocessed_results = []
+    #     for class_idx in range(out_probabilities.shape[0]):
+    #
+    #         class_probs = out_probabilities[class_idx].detach().numpy()
+    #         threshold = 0.5  # Adjust the threshold as needed
+    #         binary_mask = (class_probs > threshold).astype(np.uint8)
+    #
+    #         # Append the binary mask for the current class to the list
+    #         postprocessed_results.append(binary_mask)
+    #
+    #     # Convert the list of class binary masks to a numpy array
+    #     postprocessed = np.stack(postprocessed_results, axis=0)
+    #
+    #     return postprocessed
 
-        # Apply softmax to convert logits to probabilities
-        out_probabilities = F.softmax(out, dim=0)
-
-        # Print and inspect the unique values after softmax
-        print("Model Output Probabilities Unique Values:", np.unique(out_probabilities.detach().numpy()))
-
-        # Now use argmax on the probabilities
-        predicted_classes = torch.argmax(out_probabilities, dim=0).numpy()
-
-        # Print and inspect the unique values of predicted_classes
-        print("Predicted Classes Unique Values:", np.unique(predicted_classes))
-
-        # Check the distribution of softmax probabilities for each class
-        for class_idx in range(out_probabilities.shape[0]):
-            class_probs = out_probabilities[class_idx].detach().numpy()
-            print(f"Class {class_idx} Probability Distribution:", np.unique(class_probs))
-
-        # Map the predicted class values to your original class values
-        class_mapping = {0: 0, 1: 1, 2: 2}  # Adjust based on your actual class mapping
-        postprocessed = np.vectorize(class_mapping.get)(predicted_classes)
-
-        # Print and inspect the unique values in the postprocessed array
-        print("Postprocessed Unique Values:", np.unique(postprocessed))
-
-        h, w = original_image.shape[:2]
-        postprocessed = cv2.resize(postprocessed, (w, h), interpolation=cv2.INTER_NEAREST)
-
-        return postprocessed
+    # def _postprocess_model_output(
+    #         self, out: torch.Tensor, original_image: np.ndarray
+    # ) -> np.ndarray:
+    #     # Assuming out has shape (num_classes, height, width)
+    #
+    #     # Print and inspect the raw model output
+    #     print("Raw Model Output Range:", out.min().item(), out.max().item())
+    #
+    #     # Squeeze the channel dimension
+    #     out = out.squeeze(0)
+    #
+    #     # Apply softmax to convert logits to probabilities
+    #     out_probabilities = F.softmax(out, dim=0)
+    #
+    #     # Print and inspect the unique values after softmax
+    #     print("Model Output Probabilities Unique Values:", np.unique(out_probabilities.detach().numpy()))
+    #
+    #     # Now use argmax on the probabilities
+    #     predicted_classes = torch.argmax(out_probabilities, dim=0).numpy()
+    #
+    #     # Print and inspect the unique values of predicted_classes
+    #     print("Predicted Classes Unique Values:", np.unique(predicted_classes))
+    #
+    #     # Check the distribution of softmax probabilities for each class
+    #     for class_idx in range(out_probabilities.shape[0]):
+    #         class_probs = out_probabilities[class_idx].detach().numpy()
+    #         print(f"Class {class_idx} Probability Distribution:", np.unique(class_probs))
+    #
+    #     # Map the predicted class values to your original class values
+    #     class_mapping = {0: 0, 1: 1, 2: 2}  # Adjust based on your actual class mapping
+    #     postprocessed = np.vectorize(class_mapping.get)(predicted_classes)
+    #
+    #     # Print and inspect the unique values in the postprocessed array
+    #     print("Postprocessed Unique Values:", np.unique(postprocessed))
+    #
+    #     h, w = original_image.shape[:2]
+    #     postprocessed = cv2.resize(postprocessed, (w, h), interpolation=cv2.INTER_NEAREST)
+    #
+    #     return postprocessed
     # def _postprocess_model_output(
     #         self, out: torch.Tensor, original_image: np.ndarray
     # ) -> np.ndarray:
