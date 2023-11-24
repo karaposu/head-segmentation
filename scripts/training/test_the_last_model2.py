@@ -5,6 +5,7 @@ import head_segmentation.segmentation_pipeline as seg_pipeline
 from prettytable import PrettyTable
 import numpy as np
 import os
+from utils import  get_latest_model_checkpoint_path
 
 
 class CustomHeadSegmentationPipeline(seg_pipeline.HumanHeadSegmentationPipeline):
@@ -51,15 +52,24 @@ def test_with_one_image(image_path, model_path):
     return predicted_segmap
 
 
-# cwd=os.getcwd()
-# parent_dir=os.path.dirname(cwd)
+cwd=os.getcwd()
+print("cwd:", cwd)
+parent_dir=os.path.dirname(cwd)
+print("parent_dir:", parent_dir)
+
+training_runs_dir= str(parent_dir) +"/training_runs"
+print("training_runs_dir:", training_runs_dir)
+latest_model_path=get_latest_model_checkpoint_path(training_runs_dir)
 # latest_model_path= str(parent_dir)  +'/models/last.ckpt'
-latest_model_path="/home/enes/lab/training_runs/2023-11-21/15-26/models/last.ckpt"
+print("latest_model_path: ",latest_model_path)
+"/home/enes/lab/training_runs/2023-11-23/20-07/models/last.ckpt"
+# latest_model_path="/home/enes/lab/training_runs/2023-11-21/15-26/models/last.ckpt"
 image_path= "/home/enes/lab/processed_dataset/train/images/1001.jpg"
 predicted_segmap=test_with_one_image(image_path, latest_model_path)
 
-predicted_segmap[predicted_segmap==1]=255
-cv2.imwrite("./predicted_segmap2.png", predicted_segmap)
+predicted_segmap[predicted_segmap==1]=200
+predicted_segmap[predicted_segmap==2]=255
+cv2.imwrite("./predicted_segmap3.png", predicted_segmap)
 
 # mask0=predicted_segmap[0,:,:]
 # mask1=predicted_segmap[1,:,:]

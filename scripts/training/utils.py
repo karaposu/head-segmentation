@@ -11,6 +11,7 @@ import os
 def get_latest_model_checkpoint_path(parent_dir):
     file_name = 'models/last.ckpt'
     date_folders = os.listdir(parent_dir)
+    print("date_folders:", date_folders)
     latest_checkpoint_path = None
 
     for date_folder in date_folders:
@@ -22,4 +23,4 @@ def get_latest_model_checkpoint_path(parent_dir):
             latest_checkpoint_path = os.path.join(parent_dir, date_folder, sorted_time_folders_with_file[0])
             break
 
-    return latest_checkpoint_path
+    return str(latest_checkpoint_path)+"/"+file_name
